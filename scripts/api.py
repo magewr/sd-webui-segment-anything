@@ -3,7 +3,7 @@ from fastapi import FastAPI, Body
 from pydantic import BaseModel
 from typing import Any, Optional, List
 import gradio as gr
-from PIL import Image
+from PIL import Image, ImageOps
 import numpy as np
 
 from modules.api.api import encode_pil_to_base64, decode_base64_to_image
@@ -35,6 +35,17 @@ def encode_to_base64(image):
     else:
         Exception("Invalid type")
 
+def invert_image(image):
+    if type(image) is str:
+        return ImageOps.invert(decode_to_pil(str))
+    elif type(image) is Image.Image:
+        return ImageOps.invert(image.convert('RGB'))
+    elif type(image) is np.ndarray:
+        pil = Image.fromarray(image)
+        return ImageOps.invert(pil)
+    else:
+        Exception("Invalid type")
+
 
 def sam_api(_: gr.Blocks, app: FastAPI):    
     @app.get("/sam/heartbeat")
@@ -58,6 +69,7 @@ def sam_api(_: gr.Blocks, app: FastAPI):
         dino_box_threshold: Optional[float] = 0.3
         dino_preview_checkbox: bool = False
         dino_preview_boxes_selection: Optional[List[int]] = None
+        invert_mask: bool = False
 
     @app.post("/sam/sam-predict")
     async def api_sam_predict(payload: SamPredictRequest = Body(...)) -> Any:
@@ -78,6 +90,8 @@ def sam_api(_: gr.Blocks, app: FastAPI):
         result = {
             "msg": sam_message,
         }
+        if payload.invert_mask:
+            sam_output_mask_gallery = list(map(invert_image, sam_output_mask_gallery))
         if len(sam_output_mask_gallery) == 9:
             result["blended_images"] = list(map(encode_to_base64, sam_output_mask_gallery[:3]))
             result["masks"] = list(map(encode_to_base64, sam_output_mask_gallery[3:6]))
