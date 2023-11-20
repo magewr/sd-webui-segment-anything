@@ -68,8 +68,9 @@ def sam_api(_: gr.Blocks, app: FastAPI):
         dino_text_prompt: Optional[str] = None
         dino_box_threshold: Optional[float] = 0.3
         dino_preview_checkbox: bool = False
-        dino_preview_boxes_selection: Optional[List[int]] = None
+        dino_preview_boxes_selection: Optional[List[int]] = [0]
         invert_mask: bool = False
+        dilate_amount: int = 0
 
     @app.post("/sam/sam-predict")
     async def api_sam_predict(payload: SamPredictRequest = Body(...)) -> Any:
@@ -96,6 +97,10 @@ def sam_api(_: gr.Blocks, app: FastAPI):
             result["blended_images"] = list(map(encode_to_base64, sam_output_mask_gallery[:3]))
             result["masks"] = list(map(encode_to_base64, sam_output_mask_gallery[3:6]))
             result["masked_images"] = list(map(encode_to_base64, sam_output_mask_gallery[6:]))
+        if payload.dilate_amount != 0:
+            dilate_result = list(map(encode_to_base64, update_mask(sam_output_mask_gallery[3], 0, payload.dilate_amount, payload.input_image)))
+            result["dilate_images"] = {"blended_image": dilate_result[0], "mask": dilate_result[1], "masked_image": dilate_result[2]}
+
         return result
 
     class DINOPredictRequest(BaseModel):

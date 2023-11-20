@@ -7,7 +7,7 @@ from PIL import Image
 import torch
 import gradio as gr
 from collections import OrderedDict
-from scipy.ndimage import binary_dilation
+from scipy.ndimage import binary_dilation, binary_erosion
 from modules import scripts, shared, script_callbacks
 from modules.ui import gr_show
 from modules.ui_components import FormRow
@@ -134,10 +134,20 @@ def init_sam_model(sam_model_name):
 
 
 def dilate_mask(mask, dilation_amt):
-    x, y = np.meshgrid(np.arange(dilation_amt), np.arange(dilation_amt))
-    center = dilation_amt // 2
-    dilation_kernel = ((x - center)**2 + (y - center)**2 <= center**2).astype(np.uint8)
-    dilated_binary_img = binary_dilation(mask, dilation_kernel)
+    if dilation_amt >= 0:
+        # Dilation
+        x, y = np.meshgrid(np.arange(dilation_amt), np.arange(dilation_amt))
+        center = dilation_amt // 2
+        dilation_kernel = ((x - center) ** 2 + (y - center) ** 2 <= center ** 2).astype(np.uint8)
+        dilated_binary_img = binary_dilation(mask, dilation_kernel)
+    else:
+        # Erosion (negative dilation_amt)
+        erosion_amt = -dilation_amt
+        x, y = np.meshgrid(np.arange(erosion_amt), np.arange(erosion_amt))
+        center = erosion_amt // 2
+        erosion_kernel = ((x - center) ** 2 + (y - center) ** 2 <= center ** 2).astype(np.uint8)
+        dilated_binary_img = binary_erosion(mask, erosion_kernel)
+
     dilated_mask = Image.fromarray(dilated_binary_img.astype(np.uint8) * 255)
     return dilated_mask, dilated_binary_img
 
@@ -463,7 +473,7 @@ def ui_sketch(sam_input_image, is_img2img):
 def ui_dilation(sam_output_mask_gallery, sam_output_chosen_mask, sam_input_image):
     sam_dilation_checkbox = gr.Checkbox(value=False, label="Expand Mask")
     with gr.Column(visible=False) as dilation_column:
-        sam_dilation_amt = gr.Slider(minimum=0, maximum=100, default=0, value=0, label="Specify the amount that you wish to expand the mask by (recommend 30)")
+        sam_dilation_amt = gr.Slider(minimum=-100, maximum=100, default=0, value=0, label="Specify the amount that you wish to expand the mask by (recommend 30)")
         sam_dilation_output_gallery = gr.Gallery(label="Expanded Mask", columns=3)
         sam_dilation_submit = gr.Button(value="Update Mask")
         sam_dilation_submit.click(
