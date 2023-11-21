@@ -208,9 +208,12 @@ def sam_predict(sam_model_name, input_image, positive_points, negative_points,
     sam_predict_result = " done."
     if dino_enabled:
         boxes_filt, install_success = dino_predict_internal(input_image, dino_model_name, text_prompt, box_threshold)
-        if dino_preview_checkbox is not None and dino_preview_checkbox and dino_preview_boxes_selection is not None:
-            valid_indices = [int(i) for i in dino_preview_boxes_selection if int(i) < boxes_filt.shape[0]]
-            boxes_filt = boxes_filt[valid_indices]
+        valid_indices = [int(i) for i in ['0'] if int(i) < boxes_filt.shape[0]]
+        boxes_filt = boxes_filt[valid_indices]
+        # if dino_preview_checkbox is not None and dino_preview_checkbox and dino_preview_boxes_selection is not None:
+        #     print(f"dino_preview_boxes_selection = \n{dino_preview_boxes_selection}")
+        #     valid_indices = [int(i) for i in dino_preview_boxes_selection if int(i) < boxes_filt.shape[0]]
+        #     boxes_filt = boxes_filt[valid_indices]
     sam = init_sam_model(sam_model_name)
     print(f"Running SAM Inference {image_np_rgb.shape}")
     predictor = SamPredictorHQ(sam, 'hq' in sam_model_name)
@@ -473,7 +476,7 @@ def ui_sketch(sam_input_image, is_img2img):
 def ui_dilation(sam_output_mask_gallery, sam_output_chosen_mask, sam_input_image):
     sam_dilation_checkbox = gr.Checkbox(value=False, label="Expand Mask")
     with gr.Column(visible=False) as dilation_column:
-        sam_dilation_amt = gr.Slider(minimum=-100, maximum=100, default=0, value=0, label="Specify the amount that you wish to expand the mask by (recommend 30)")
+        sam_dilation_amt = gr.Slider(minimum=-100, maximum=100, default=0, value=0, label="Specify the amount that you wish to expand the mask by (recommend 30). ")
         sam_dilation_output_gallery = gr.Gallery(label="Expanded Mask", columns=3)
         sam_dilation_submit = gr.Button(value="Update Mask")
         sam_dilation_submit.click(
