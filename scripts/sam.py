@@ -208,7 +208,10 @@ def sam_predict(sam_model_name, input_image, positive_points, negative_points,
     sam_predict_result = " done."
     if dino_enabled:
         boxes_filt, install_success = dino_predict_internal(input_image, dino_model_name, text_prompt, box_threshold)
-        valid_indices = [int(i) for i in ['0'] if int(i) < boxes_filt.shape[0]]
+        boxes = boxes_filt.numpy()
+        box_areas = (boxes[:, 2] - boxes[:, 0]) * (boxes[:, 3] - boxes[:, 1])
+        largest_box_index = np.argmax(box_areas)
+        valid_indices = [int(i) for i in [largest_box_index] if int(i) < boxes_filt.shape[0]]
         boxes_filt = boxes_filt[valid_indices]
         # if dino_preview_checkbox is not None and dino_preview_checkbox and dino_preview_boxes_selection is not None:
         #     print(f"dino_preview_boxes_selection = \n{dino_preview_boxes_selection}")
