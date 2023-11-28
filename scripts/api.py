@@ -93,13 +93,21 @@ def sam_api(_: gr.Blocks, app: FastAPI):
         }
         if payload.invert_mask:
             sam_output_mask_gallery = list(map(invert_image, sam_output_mask_gallery))
+
         if len(sam_output_mask_gallery) == 9:
             result["blended_images"] = list(map(encode_to_base64, sam_output_mask_gallery[:3]))
             result["masks"] = list(map(encode_to_base64, sam_output_mask_gallery[3:6]))
             result["masked_images"] = list(map(encode_to_base64, sam_output_mask_gallery[6:]))
+        else:
+            result["blended_images"] = []
+            result["masks"] = []
+            result["masked_images"] = []
+
         if payload.dilate_amount != 0:
             dilate_result = list(map(encode_to_base64, update_mask(sam_output_mask_gallery[3], 0, payload.dilate_amount, payload.input_image)))
             result["dilate_images"] = {"blended_image": dilate_result[0], "mask": dilate_result[1], "masked_image": dilate_result[2]}
+        else:
+            result["dilate_images"] = {"blended_image": [], "mask": [],  "masked_image": []}
 
         return result
 
