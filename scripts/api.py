@@ -5,6 +5,8 @@ from typing import Any, Optional, List
 import gradio as gr
 from PIL import Image, ImageOps
 import numpy as np
+import cv2
+import skimage.exposure
 
 from modules.api.api import encode_pil_to_base64, decode_base64_to_image
 from scripts.sam import sam_predict, dino_predict, update_mask, cnet_seg, categorical_mask
@@ -45,6 +47,26 @@ def invert_image(image):
         return ImageOps.invert(pil)
     else:
         Exception("Invalid type")
+
+def smooth_edge(img):
+
+    # extract alpha channel
+    alpha = img[:, :, 3]
+
+    # blur alpha channel
+    blur_alpha = cv2.GaussianBlur(alpha, (0, 0), sigmaX=2, sigmaY=2, borderType=cv2.BORDER_DEFAULT)
+
+    # stretch so that 255 -> 255 and 127.5 -> 0
+    stretch_alpha = skimage.exposure.rescale_intensity(blur_alpha, in_range=(127.5, 255), out_range=(0, 255))
+
+    # replace alpha channel in input with new alpha channel
+    out = img.copy()
+    out[:, :, 3] = stretch_alpha
+
+    out_pil = Image.fromarray(cv2.cvtColor(out, cv2.COLOR_BGR2RGB))
+
+    out_pil.show()
+    return out_pil
 
 
 def sam_api(_: gr.Blocks, app: FastAPI):    
@@ -91,13 +113,14 @@ def sam_api(_: gr.Blocks, app: FastAPI):
         result = {
             "msg": sam_message,
         }
-        if payload.invert_mask:
-            sam_output_mask_gallery = list(map(invert_image, sam_output_mask_gallery))
 
         if len(sam_output_mask_gallery) == 9:
             result["blended_images"] = list(map(encode_to_base64, sam_output_mask_gallery[:3]))
-            result["masks"] = list(map(encode_to_base64, sam_output_mask_gallery[3:6]))
-            result["masked_images"] = list(map(encode_to_base64, sam_output_mask_gallery[6:]))
+            if payload.invert_mask:
+                result["masks"] = list(map(encode_to_base64, map(invert_image, sam_output_mask_gallery[3:6])))
+            else:
+                result["masks"] = list(map(encode_to_base64, sam_output_mask_gallery[3:6]))
+            result["masked_images"] = list(map(encode_to_base64, map(smooth_edge, sam_output_mask_gallery[6:])))
         else:
             result["blended_images"] = []
             result["masks"] = []
